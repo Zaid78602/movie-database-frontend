@@ -3,16 +3,26 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
-    const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
-        request.nextUrl.pathname.startsWith('/register');
-    const isProtectedRoute = request.nextUrl.pathname.startsWith('/movies');
+    const { pathname } = request.nextUrl;
 
-    // If trying to access movies without a token, redirect to login
+    const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register');
+    const isProtectedRoute = pathname.startsWith('/movies');
+    const isRoot = pathname === '/';
+
+    // 1. Handle Root Path (/)
+    if (isRoot) {
+        if (token) {
+            return NextResponse.redirect(new URL('/movies', request.url));
+        }
+        return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // 2. If trying to access movies without a token, redirect to login
     if (isProtectedRoute && !token) {
         return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    // If trying to access login/register with a token, redirect to movies list
+    // 3. If trying to access login/register with a token, redirect to movies list
     if (isAuthPage && token) {
         return NextResponse.redirect(new URL('/movies', request.url));
     }
@@ -21,5 +31,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/movies/:path*', '/login', '/register'],
+    matcher: ['/', '/movies/:path*', '/login', '/register'],
 };
