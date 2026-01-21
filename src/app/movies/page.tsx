@@ -39,7 +39,7 @@ export default function MoviesPage() {
         router.push('/login');
     };
 
-    if (isLoading && movies.length === 0) {
+    if (isLoading && (!movies || movies.length === 0)) {
         return (
             <main className="min-h-screen relative flex flex-col items-center justify-center bg-background">
                 <div className="h-12 w-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
