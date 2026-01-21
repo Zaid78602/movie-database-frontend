@@ -9,6 +9,7 @@ function cn(...inputs: ClassValue[]) {
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'outline';
     fullWidth?: boolean;
+    isLoading?: boolean;
 }
 
 export const Button = ({
@@ -16,6 +17,7 @@ export const Button = ({
     className,
     variant = 'primary',
     fullWidth = false,
+    isLoading = false,
     ...props
 }: ButtonProps) => {
     const variants = {
@@ -31,9 +33,17 @@ export const Button = ({
                 fullWidth && 'w-full',
                 className
             )}
+            disabled={props.disabled || isLoading}
             {...props}
         >
-            {children}
+            {isLoading ? (
+                <div className="flex items-center space-x-2">
+                    <div className="h-4 w-4 border-2 border-background/20 border-t-background rounded-full animate-spin" />
+                    <span>Loading...</span>
+                </div>
+            ) : (
+                children
+            )}
         </button>
     );
 };

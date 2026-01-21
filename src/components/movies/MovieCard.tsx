@@ -17,6 +17,10 @@ interface MovieCardProps {
 export const MovieCard = ({ id, title, year, imageUrl, onDelete }: MovieCardProps) => {
     const router = useRouter();
 
+    const posterUrl = imageUrl.startsWith('http')
+        ? imageUrl
+        : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3002'}${imageUrl}`;
+
     return (
         <div
             onClick={() => router.push(`/movies/edit/${id}`)}
@@ -24,7 +28,7 @@ export const MovieCard = ({ id, title, year, imageUrl, onDelete }: MovieCardProp
         >
             <div className="relative aspect-[3/4] w-full mb-4 overflow-hidden rounded-xl">
                 <Image
-                    src={imageUrl}
+                    src={posterUrl}
                     alt={title}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-300"

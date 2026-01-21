@@ -6,16 +6,45 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { WaveFooter } from '@/components/ui/WaveFooter';
 
+import { useRouter } from 'next/navigation';
+import { useAppDispatch } from '@/store/hooks';
+import { authService } from '@/services/authService';
+import { setCredentials, setLoading, setError } from '@/store/features/authSlice';
+import toast from 'react-hot-toast';
+
 export default function RegisterPage() {
+    const router = useRouter();
+    const dispatch = useAppDispatch();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Register attempt:', { name, email, password });
-        // API integration will be done later
+
+        if (password !== confirmPassword) {
+            toast.error('Passwords do not match');
+            return;
+        }
+
+        setIsSubmitting(true);
+        dispatch(setLoading(true));
+
+        try {
+            const response = await authService.register({ name, email, password });
+            dispatch(setCredentials(response));
+            toast.success('Account created successfully!');
+            router.push('/movies');
+        } catch (error: any) {
+            const message = error.response?.data?.message || 'Registration failed. Please try again.';
+            dispatch(setError(message));
+            toast.error(message);
+        } finally {
+            setIsSubmitting(false);
+            dispatch(setLoading(false));
+        }
     };
 
     return (
@@ -56,7 +85,7 @@ export default function RegisterPage() {
                         required
                     />
 
-                    <Button type="submit" fullWidth>
+                    <Button type="submit" fullWidth isLoading={isSubmitting}>
                         Create account
                     </Button>
 

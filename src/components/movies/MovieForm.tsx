@@ -5,22 +5,26 @@ import { useRouter } from 'next/navigation';
 import { Upload } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { movieService } from '@/services/movieService';
+import toast from 'react-hot-toast';
 
 interface MovieFormProps {
+    id?: string;
     initialData?: {
         title: string;
-        year: string;
-        imageUrl: string;
+        publishingYear: number;
+        poster: string;
     };
     mode?: 'create' | 'edit';
 }
 
-export const MovieForm = ({ initialData, mode = 'create' }: MovieFormProps) => {
+export const MovieForm = ({ id, initialData, mode = 'create' }: MovieFormProps) => {
     const router = useRouter();
     const [title, setTitle] = useState(initialData?.title || '');
-    const [year, setYear] = useState(initialData?.year || '');
+    const [year, setYear] = useState(initialData?.publishingYear ? String(initialData.publishingYear) : '');
     const [image, setImage] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string>(initialData?.imageUrl || '');
+    const [previewUrl, setPreviewUrl] = useState<string>(initialData?.poster || '');
+    const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,10 +35,40 @@ export const MovieForm = ({ initialData, mode = 'create' }: MovieFormProps) => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Form Submit:', { title, year, image });
-        // API integration later
+
+        if (!previewUrl) {
+            toast.error('Please upload a poster');
+            return;
+        }
+
+        setIsLoading(true);
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('publishingYear', year);
+        if (image) {
+            formData.append('poster', image);
+        } else if (mode === 'edit' && initialData?.poster) {
+            formData.append('poster', initialData.poster);
+        }
+
+        try {
+            if (mode === 'create') {
+                await movieService.createMovie(formData);
+                toast.success('Movie created successfully!');
+            } else if (mode === 'edit' && id) {
+                await movieService.updateMovie(id, formData);
+                toast.success('Movie updated successfully!');
+            }
+            router.push('/movies');
+            router.refresh();
+        } catch (error: any) {
+            const message = error.response?.data?.message || `Failed to ${mode} movie`;
+            toast.error(Array.isArray(message) ? message[0] : message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -51,7 +85,9 @@ export const MovieForm = ({ initialData, mode = 'create' }: MovieFormProps) => {
                 >
                     {previewUrl ? (
                         <img
-                            src={previewUrl}
+                            src={previewUrl.startsWith('http') || previewUrl.startsWith('blob:')
+                                ? previewUrl
+                                : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3002'}${previewUrl}`}
                             alt="Preview"
                             className="w-full h-full object-cover"
                             onError={() => setPreviewUrl('')}
@@ -88,6 +124,7 @@ export const MovieForm = ({ initialData, mode = 'create' }: MovieFormProps) => {
                             value={year}
                             onChange={(e) => setYear(e.target.value)}
                             required
+                            type="number"
                         />
                     </div>
 
@@ -97,10 +134,11 @@ export const MovieForm = ({ initialData, mode = 'create' }: MovieFormProps) => {
                             variant="outline"
                             fullWidth
                             onClick={() => router.push('/movies')}
+                            disabled={isLoading}
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" fullWidth>
+                        <Button type="submit" fullWidth isLoading={isLoading}>
                             {mode === 'create' ? 'Submit' : 'Update'}
                         </Button>
                     </div>

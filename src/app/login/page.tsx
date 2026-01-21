@@ -1,19 +1,43 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { WaveFooter } from '@/components/ui/WaveFooter';
 
+import { useRouter } from 'next/navigation';
+import { useAppDispatch } from '@/store/hooks';
+import { authService } from '@/services/authService';
+import { setCredentials, setLoading, setError } from '@/store/features/authSlice';
+import toast from 'react-hot-toast';
+
 export default function LoginPage() {
+    const router = useRouter();
+    const dispatch = useAppDispatch();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Login attempt:', { email, password, rememberMe });
-        // API integration will be done later
+        setIsSubmitting(true);
+        dispatch(setLoading(true));
+
+        try {
+            const response = await authService.login({ email, password });
+            dispatch(setCredentials(response));
+            toast.success('Logged in successfully!');
+            router.push('/movies');
+        } catch (error: any) {
+            const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
+            dispatch(setError(message));
+            toast.error(message);
+        } finally {
+            setIsSubmitting(false);
+            dispatch(setLoading(false));
+        }
     };
 
     return (
@@ -59,9 +83,16 @@ export default function LoginPage() {
                         <span className="text-white text-sm">Remember me</span>
                     </div>
 
-                    <Button type="submit" fullWidth>
+                    <Button type="submit" fullWidth isLoading={isSubmitting}>
                         Login
                     </Button>
+
+                    <p className="text-white text-sm">
+                        Don’t have an account?{' '}
+                        <Link href="/register" className="text-primary hover:underline font-medium">
+                            Sign up
+                        </Link>
+                    </p>
                 </form>
             </div>
 

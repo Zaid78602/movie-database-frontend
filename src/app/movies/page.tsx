@@ -1,34 +1,56 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, LogOut } from 'lucide-react';
 import { MovieCard } from '@/components/movies/MovieCard';
 import { WaveFooter } from '@/components/ui/WaveFooter';
 import { EmptyState } from '@/components/movies/EmptyState';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { logout } from '@/store/features/authSlice';
+import { fetchMovies, deleteMovie, setPage } from '@/store/features/movieSlice';
+import toast from 'react-hot-toast';
 
 export default function MoviesPage() {
     const router = useRouter();
+    const dispatch = useAppDispatch();
+    const { movies, total, page, limit, totalPages, isLoading } = useAppSelector((state) => state.movie);
+    const { isAuthenticated, isInitialized } = useAppSelector((state) => state.auth);
 
-    // Mock data for UI-only phase (8 movies to show the grid)
-    const [movies, setMovies] = useState(
-        Array(8).fill(null).map((_, i) => ({
-            id: String(i + 1),
-            title: 'Movie ' + (i + 1),
-            year: '2021',
-            imageUrl: `https://picsum.photos/seed/${i + 10}/600/800`
-        }))
-    );
+    useEffect(() => {
+        if (isInitialized && isAuthenticated) {
+            dispatch(fetchMovies({ page, limit }));
+        }
+    }, [dispatch, page, limit, isInitialized, isAuthenticated]);
 
-    const handleDelete = (id: string) => {
-        setMovies(prev => prev.filter(movie => movie.id !== id));
+    const handleDelete = async (id: string) => {
+        try {
+            await dispatch(deleteMovie(id)).unwrap();
+            toast.success('Movie deleted successfully');
+        } catch (error) {
+            toast.error('Failed to delete movie');
+        }
     };
+
+    const handleLogout = () => {
+        dispatch(logout());
+        toast.success('Logged out successfully');
+        router.push('/login');
+    };
+
+    if (isLoading && movies.length === 0) {
+        return (
+            <main className="min-h-screen relative flex flex-col items-center justify-center bg-background">
+                <div className="h-12 w-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+            </main>
+        );
+    }
 
     return (
         <main className="min-h-screen relative flex flex-col pb-20">
             <div className="w-full max-w-7xl mx-auto px-4 py-12 md:py-16">
-                {/* Header Substantially Reduced Spacing */}
+                {/* Header */}
                 <div className="flex items-center justify-between mb-8 md:mb-12">
                     <div className="flex items-center space-x-3">
                         <h1 className="text-white text-3xl md:text-5xl font-semibold">My movies</h1>
@@ -37,7 +59,7 @@ export default function MoviesPage() {
                         </Link>
                     </div>
                     <button
-                        onClick={() => router.push('/login')}
+                        onClick={handleLogout}
                         className="flex items-center space-x-3 text-white font-semibold hover:opacity-80 transition-opacity"
                     >
                         <span className="hidden md:inline">Logout</span>
@@ -45,8 +67,8 @@ export default function MoviesPage() {
                     </button>
                 </div>
 
-                {/* Grid with optimized gaps */}
-                {movies.length === 0 ? (
+                {/* Grid */}
+                {!isLoading && movies.length === 0 ? (
                     <div className="flex-1 flex justify-center items-center py-10">
                         <EmptyState />
                     </div>
@@ -54,19 +76,48 @@ export default function MoviesPage() {
                     <>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
                             {movies.map((movie) => (
-                                <MovieCard key={movie.id} {...movie} onDelete={handleDelete} />
+                                <MovieCard
+                                    key={movie._id}
+                                    id={movie._id}
+                                    title={movie.title}
+                                    year={String(movie.publishingYear)}
+                                    imageUrl={movie.poster}
+                                    onDelete={handleDelete}
+                                />
                             ))}
                         </div>
 
-                        {/* Pagination Reduced Spacing */}
-                        <div className="flex items-center justify-center space-x-4 mt-12 md:mt-16">
-                            <button className="text-white font-bold hover:text-primary transition-colors">Prev</button>
-                            <div className="flex items-center space-x-2">
-                                <button className="w-8 h-8 rounded bg-primary text-white flex items-center justify-center font-bold">1</button>
-                                <button className="w-8 h-8 rounded bg-card text-white flex items-center justify-center font-bold hover:bg-card/70">2</button>
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-center space-x-4 mt-12 md:mt-16">
+                                <button
+                                    onClick={() => dispatch(setPage(Math.max(1, page - 1)))}
+                                    disabled={page === 1}
+                                    className="text-white font-bold hover:text-primary transition-colors disabled:opacity-50"
+                                >
+                                    Prev
+                                </button>
+                                <div className="flex items-center space-x-2">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                                        <button
+                                            key={p}
+                                            onClick={() => dispatch(setPage(p))}
+                                            className={`w-8 h-8 rounded flex items-center justify-center font-bold transition-colors ${p === page ? 'bg-primary text-white' : 'bg-card text-white hover:bg-card/70'
+                                                }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => dispatch(setPage(Math.min(totalPages, page + 1)))}
+                                    disabled={page === totalPages}
+                                    className="text-white font-bold hover:text-primary transition-colors disabled:opacity-50"
+                                >
+                                    Next
+                                </button>
                             </div>
-                            <button className="text-white font-bold hover:text-primary transition-colors">Next</button>
-                        </div>
+                        )}
                     </>
                 )}
             </div>
